@@ -6,8 +6,6 @@ open WTrace.Dotnet
 type TraceEventLevel = System.Diagnostics.Tracing.EventLevel
 
 type EventFilter =
-| ProcessId of string * int32
-| ProcessName of string * string
 | EventName of string * string
 | Details of string * string
 | Path of string * string
@@ -43,12 +41,6 @@ module EventFilter =
 
         let buildFilterFunction filter =
             match filter with
-            | ProcessId (op, n) ->
-                let check = createCheck op
-                ("pid", fun ev -> check ev.ProcessId n)
-            | ProcessName (op, s) ->
-                let check = createCheckString op
-                ("pname", fun ev -> check ev.ProcessName s)
             | EventName (op , s) ->
                 let check = createCheckString op
                 ("name", fun ev -> check ev.EventName s)
@@ -86,11 +78,7 @@ module EventFilter =
             let mutable n = 0
             let filterName = filterName.Trim()
             let filterValue = filterValue.Trim()
-            if filterName === "pid" && Int32.TryParse(filterValue, &n) then
-                ProcessId (operator, n)
-            elif filterName === "pname" then
-                ProcessName (operator, filterValue)
-            elif filterName === "name" then
+            if filterName === "name" then
                 EventName (operator, filterValue)
             elif filterName === "path" then
                 Path (operator, filterValue)
@@ -105,8 +93,6 @@ module EventFilter =
     let printFilters filters =
         let buildFilterDescription filter =
             match filter with
-            | ProcessId (op, n) -> ("Process ID", sprintf "%s '%d'" op n)
-            | ProcessName (op, s) -> ("Process name", sprintf "%s '%s'" op s)
             | EventName (op , s) -> ("Event name", sprintf "%s '%s'" op s)
             | Path (op, s) -> ("Path", sprintf "%s '%s'" op s)
             | Details (op, s) -> ("Details", sprintf "%s '%s'" op s)
