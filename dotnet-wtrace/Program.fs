@@ -32,7 +32,7 @@ let showCopyright () =
     printfn ""
 
 let showHelp () =
-    printfn "Usage: %s [OPTIONS] [pid|imagename args]" appName.Name
+    printfn "Usage: %s [OPTIONS] [pid|imagename args|.nettrace file]" appName.Name
 
     printfn
         @"
@@ -69,9 +69,12 @@ Options:
     details - filtering on the event details
 
   Operators include:
-    =, <> (does not equal), <= (ends with), >= (starts with), ~ (contains)
+    = (equals), <> (does not equal), <= (ends with), >= (starts with), ~ (contains)
 
-  Example: -f 'name >= Sockets/', -f 'level <= 4'
+  Examples:
+    -f 'name >= Sockets/'
+    -f 'level <= 4'
+    -f 'name = GC/Start' -f 'name = GC/End'
 "
 
 let isFlagEnabled args flags =
