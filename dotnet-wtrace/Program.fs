@@ -118,7 +118,7 @@ let parseHandlers args =
         with Failure msg -> Error msg
 
     match args |> Map.tryFind "handlers" with
-    | None -> createHandlers "default"
+    | None -> createHandlers "default,gc,loader,network" // default set of handlers
     | Some [ handlers ] -> createHandlers handlers
     | _ -> Error("Handlers can be specified only once.")
 

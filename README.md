@@ -4,7 +4,7 @@
 
 **The project homepage is at <https://wtrace.net>.**
 
-Dotnet-wtrace is a command line tool for reading trace events emitted by .NET Core applications. It can live trace a launch of a new process, attach to an existing process, or read a .nettrace file. It does some preprocessing before displaying the events to make them more readable. I implemented several handlers for the events I find interesting and most commonly used, including exceptions, GC events, assembly loader notifications, ASP.NET Core and network events. You may limit the output by enabling limited number of handlers and setting filters. Check the [documentation](https://wtrace.net/documentation/dotnet-wtrace) to learn more.
+Dotnet-wtrace is a command-line tool for reading trace events emitted by .NET Core applications. It can trace a process from its launch, attach to an already running process, or read a .nettrace file. Compared to dotnet-trace, it outputs events as they arrive (there is some delay because of the buffering on the target process side). It is not meant to replace dotnet-trace but rather help you in the initial problem diagnosis. To make the events data more readable, dotnet-wtrace does some preprocessing and might not show all the event fields. I implemented several handlers for the most useful (in my opinion) events. Those events include exceptions, GC, loader, ASP.NET Core, EF Core, and network events. You may limit the output by selecting specific handlers and setting filters. Check the [documentation](https://wtrace.net/documentation/dotnet-wtrace) to learn more.
 
 An example command line:
 
@@ -18,7 +18,7 @@ A screenshot of an example output:
 
 ## Installation
 
-The precompiled binaries are available in the [release page](https://github.com/lowleveldesign/dotnet-wtrace/releases).
+The precompiled binaries are available on the [release page](https://github.com/lowleveldesign/dotnet-wtrace/releases).
 
 You may also install dotnet-wtrace as one of the dotnet global tools:
 
@@ -72,10 +72,4 @@ Options:
     -f 'name >= Sockets/'
     -f 'level <= 4'
     -f 'name = GC/Start' -f 'name = GC/End'
-```
-
-## Build
-
-```
-dotnet publish -p:PublishSingleFile=true -p:PublishTrimmed=true -r win-x64 -f netcoreapp3.1
 ```
