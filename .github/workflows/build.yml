@@ -1,0 +1,41 @@
+name: build
+
+on: [push]
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@main
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '5.0.x' # SDK Version to use.
+
+    - run: dotnet publish -c release -r linux-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - run: dotnet publish -c release -r osx-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - run: dotnet publish -c release -r win-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-linux
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/linux-x64/publish
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-windows
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/win-x64/publish
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-osx
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/osx-x64/publish

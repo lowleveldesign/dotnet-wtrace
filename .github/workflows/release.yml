@@ -1,0 +1,57 @@
+name: release
+
+on: 
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@main
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '5.0.x' # SDK Version to use.
+
+    - run: |
+        Invoke-WebRequest -OutFile Update-AssemblyInfoVersionFiles.ps1 https://gist.githubusercontent.com/lowleveldesign/663de4e0d5a071f938e6f7c82d7ca9a0/raw/Update-AssemblyInfoVersionFiles.ps1
+        ./Update-AssemblyInfoVersionFiles.ps1
+      shell: pwsh
+
+    - run: dotnet build -c release -p:GeneratePackageOnBuild=true
+      working-directory: ./dotnet-wtrace
+
+    - run: dotnet nuget push -s https://api.nuget.org/v3/index.json -k "$NUGET_KEY" dotnet-wtrace.*.nupkg
+      env:
+        NUGET_KEY: ${{ secrets.NUGET_KEY }}
+      working-directory: ./dotnet-wtrace/bin/release
+
+    - run: dotnet publish -c release -r linux-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - run: dotnet publish -c release -r osx-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - run: dotnet publish -c release -r win-x64 -f netcoreapp3.1 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      working-directory: ./dotnet-wtrace
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-linux
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/linux-x64/publish
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-windows
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/win-x64/publish
+
+    - uses: actions/upload-artifact@main
+      with:
+        name: dotnet-wtrace-osx
+        path: dotnet-wtrace/bin/release/netcoreapp3.1/osx-x64/publish

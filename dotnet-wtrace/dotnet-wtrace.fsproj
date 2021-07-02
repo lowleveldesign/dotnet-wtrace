@@ -12,6 +12,8 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotnet-wtrace</ToolCommandName>
   </PropertyGroup>
 
   <ItemGroup>
