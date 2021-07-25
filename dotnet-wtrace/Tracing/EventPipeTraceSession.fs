@@ -98,8 +98,8 @@ module EventPipeTraceSession =
                 $"[{(nameof EventPipeSession)}] EventPipe session completed, {eventSource.EventsLost} event(s) lost"
             )
         with ex ->
-            publishStatus (SessionError $"'%s{ex.Message}' <%s{ex.GetType().FullName}>")
             logger.TraceError(ex)
+            publishStatus (SessionError $"'%s{ex.Message}' <%s{ex.GetType().FullName}>")
 
 
 module internal DiagnosticsClientPrivateApi =

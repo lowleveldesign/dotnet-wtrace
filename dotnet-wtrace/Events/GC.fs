@@ -38,6 +38,9 @@ type private GCHandlerState =
 
 [<AutoOpen>]
 module private H =
+
+    let logger = Logger.Tracing
+
     let gens = [| "Gen0"; "Gen1"; "Gen2" |]
 
     let handleGCTriggered id state (ev: GCTriggeredTraceData) =
@@ -97,41 +100,43 @@ module private H =
         state.Broadcast ev
 
     let handleGCStop id state (ev: GCEndTraceData) =
-        let runningGC = state.RunningGCs.Pop()
+        match state.RunningGCs.TryPop() with
+        | (true, runningGC) ->
+            Debug.Assert(runningGC.Number = ev.Count)
 
-        Debug.Assert(runningGC.Number = ev.Count)
+            let duration =
+                ev.TimeStampRelativeMSec
+                - runningGC.StartElapsedMSec
 
-        let duration =
-            ev.TimeStampRelativeMSec
-            - runningGC.StartElapsedMSec
+            state.RunningGCs.Push({ runningGC with Completed = true })
 
-        state.RunningGCs.Push({ runningGC with Completed = true })
+            // we report the pause time only for the BGC
+            let details =
+                if runningGC.Type = GCType.BackgroundGC then
+                    sprintf
+                        "duration: %.3fms, pause: %.3fms (ephemeral: %.3f)"
+                        duration
+                        runningGC.TotalPauseDurationMSec
+                        runningGC.EphemeralPauseDurationMSec
+                else
+                    $"duration: %.3f{duration}ms"
 
-        // we report the pause time only for the BGC
-        let details =
-            if runningGC.Type = GCType.BackgroundGC then
-                sprintf
-                    "duration: %.3fms, pause: %.3fms (ephemeral: %.3f)"
-                    duration
-                    runningGC.TotalPauseDurationMSec
-                    runningGC.EphemeralPauseDurationMSec
-            else
-                $"duration: %.3f{duration}ms"
+            let ev =
+                { EventId = id
+                  TimeStamp = ev.TimeStamp
+                  ActivityId = $"GC #%d{ev.Count}"
+                  ProcessId = ev.ProcessID
+                  ProcessName = state.ProcessName
+                  ThreadId = ev.ThreadID
+                  EventName = "GC/End"
+                  EventLevel = t2e ev.Level
+                  Path = runningGC.Generations
+                  Details = details
+                  Result = 0 }
 
-        let ev =
-            { EventId = id
-              TimeStamp = ev.TimeStamp
-              ActivityId = $"GC #%d{ev.Count}"
-              ProcessId = ev.ProcessID
-              ProcessName = state.ProcessName
-              ThreadId = ev.ThreadID
-              EventName = "GC/End"
-              EventLevel = t2e ev.Level
-              Path = runningGC.Generations
-              Details = details
-              Result = 0 }
-
-        state.Broadcast ev
+            state.Broadcast ev
+        | (false, _) ->
+            logger.TraceWarning($"[GC Handler] Could not find a running GC in the trace (GC/End, GC #{ev.Count})")
 
     let handleGCSuspendEEStart id state (ev: GCSuspendEETraceData) =
         Debug.Assert(state.RuntimeSuspends.Count < 4)
@@ -167,55 +172,57 @@ module private H =
             state.Broadcast ev
 
     let handleGCRestartEEStop id state (ev: GCNoUserDataTraceData) =
-        let suspension = state.RuntimeSuspends.Pop()
+        match state.RuntimeSuspends.TryPop() with
+        | (true, suspension) ->
+            if suspension.SuspendReason = GCSuspendEEReason.SuspendForGCPrep
+               || suspension.SuspendReason = GCSuspendEEReason.SuspendForGC then
+                let duration =
+                    ev.TimeStampRelativeMSec
+                    - suspension.StartElapsedMSec
 
-        if suspension.SuspendReason = GCSuspendEEReason.SuspendForGCPrep
-           || suspension.SuspendReason = GCSuspendEEReason.SuspendForGC then
-            let duration =
-                ev.TimeStampRelativeMSec
-                - suspension.StartElapsedMSec
+                let activity, path =
+                    match state.RunningGCs.TryPop() with
+                    | (true, gc) when not gc.Completed ->
+                        // This usually happens only on BGC, but I observed it also for NonConcurrent WKS GC.
+                        // I'm not sure if it's a problem with the order of events or yet something else.
+                        Debug.Assert(state.RunningGCs.Count = 0, "if it's BGC, there should be no other GC")
 
-            let activity, path =
-                match state.RunningGCs.TryPop() with
-                | (true, gc) when not gc.Completed ->
-                    // This usually happens only on BGC, but I observed it also for NonConcurrent WKS GC.
-                    // I'm not sure if it's a problem with the order of events or yet something else.
-                    Debug.Assert(state.RunningGCs.Count = 0, "if it's BGC, there should be no other GC")
+                        state.RunningGCs.Push(
+                            { gc with
+                                  TotalPauseDurationMSec = gc.TotalPauseDurationMSec + duration }
+                        )
 
-                    state.RunningGCs.Push(
-                        { gc with
-                              TotalPauseDurationMSec = gc.TotalPauseDurationMSec + duration }
-                    )
+                        $"GC #%d{gc.Number}", gc.Generations
+                    | (true, gc) when state.RunningGCs.Count > 0 ->
+                        Debug.Assert(state.RunningGCs.Count = 1, "there should be only on BGC running")
+                        let bgc = state.RunningGCs.Pop()
 
-                    $"GC #%d{gc.Number}", gc.Generations
-                | (true, gc) when state.RunningGCs.Count > 0 ->
-                    Debug.Assert(state.RunningGCs.Count = 1, "there should be only on BGC running")
-                    let bgc = state.RunningGCs.Pop()
+                        state.RunningGCs.Push(
+                            { bgc with
+                                  TotalPauseDurationMSec = bgc.TotalPauseDurationMSec + duration
+                                  EphemeralPauseDurationMSec = bgc.EphemeralPauseDurationMSec + duration }
+                        )
 
-                    state.RunningGCs.Push(
-                        { bgc with
-                              TotalPauseDurationMSec = bgc.TotalPauseDurationMSec + duration
-                              EphemeralPauseDurationMSec = bgc.EphemeralPauseDurationMSec + duration }
-                    )
+                        $"GC #%d{gc.Number}", gc.Generations
+                    | (true, gc) -> $"GC #%d{gc.Number}", gc.Generations
+                    | (false, _) -> "", ""
 
-                    $"GC #%d{gc.Number}", gc.Generations
-                | (true, gc) -> $"GC #%d{gc.Number}", gc.Generations
-                | (false, _) -> "", ""
+                let ev =
+                    { EventId = id
+                      TimeStamp = ev.TimeStamp
+                      ActivityId = activity
+                      ProcessId = ev.ProcessID
+                      ProcessName = state.ProcessName
+                      ThreadId = ev.ThreadID
+                      EventName = "GC/RuntimeResumed"
+                      EventLevel = t2e ev.Level
+                      Path = path
+                      Details = $"suspension time: %.3f{duration}ms"
+                      Result = 0 }
 
-            let ev =
-                { EventId = id
-                  TimeStamp = ev.TimeStamp
-                  ActivityId = activity
-                  ProcessId = ev.ProcessID
-                  ProcessName = state.ProcessName
-                  ThreadId = ev.ThreadID
-                  EventName = "GC/RuntimeResumed"
-                  EventLevel = t2e ev.Level
-                  Path = path
-                  Details = $"suspension time: %.3f{duration}ms"
-                  Result = 0 }
-
-            state.Broadcast ev
+                state.Broadcast ev
+            | (false, _) ->
+                logger.TraceWarning("[GC Handler] Could not find a matching GC/RuntimeSuspended event (GC/RuntimeResumed).")
 
     let handleGCGlobalHeapHistory id state (ev: GCGlobalHeapHistoryTraceData) =
         Debug.Assert(state.RunningGCs.Count > 0, "there should be a GC registered")

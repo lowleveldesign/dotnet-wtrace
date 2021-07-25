@@ -77,13 +77,13 @@ module private H =
     let handleExceptionStop id state (ev: EmptyTraceData) =
         let exctype, ts =
             match state.ExceptionsCache.TryGetValue(ev.ThreadID) with
-            | (true, stack) ->
+            | (true, stack) when stack.Count > 0 ->
                 if stack.Count = 1 then
                     state.ExceptionsCache.Remove(ev.ThreadID)
                     |> ignore
 
                 stack.Pop()
-            | (false, _) -> ("<unknown>", 0.0)
+            | _ -> ("<unknown>", 0.0)
 
         let ev =
             { EventId = id
