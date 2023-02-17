@@ -9,10 +9,9 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceRoot}/wtrace-dotnet/bin/Debug/netcoreapp3.1/wtrace-dotnet",
+            "program": "${workspaceRoot}/dotnet-wtrace/bin/Debug/net6.0/dotnet-wtrace",
             //"args": [ "-v", "--handlers", "default", "/home/me/research/dotnet-events/apps/exceptionapp/bin/Debug/net5.0/exceptionapp" ],
             //"args": [ "-v", "--handlers", "default,network", "/mnt/disk2/traces/requestapp_20210601_161508.nettrace" ],
-            "args": [ "-v", "--handlers", "aspnet", "7049" ],
             "cwd": "${workspaceRoot}",
             "stopAtEntry": false
         }

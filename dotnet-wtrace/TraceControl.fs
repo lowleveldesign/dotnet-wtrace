@@ -96,18 +96,12 @@ module private H =
         if v = "" then "" else sprintf " '%s'" v
 
     let getActivity v =
-        if v = "" then
-            " []"
-        else
-            sprintf $" [%s{v}]"
+        if v = "" then " []" else sprintf $" [%s{v}]"
 
     let getDesc v = if v = "" then "" else sprintf " %s" v
 
     let onEvent noColor (ev: TraceEvent) =
-        if noColor then
-            printHeaderNoColor ev
-        else
-            printHeader ev
+        if noColor then printHeaderNoColor ev else printHeader ev
 
         printfn "%s%s%s" (getActivity ev.ActivityId) (getPath ev.Path) (getDesc ev.Details)
 
@@ -115,7 +109,7 @@ module private H =
         let newp =
             match m |> Map.tryFind provider.Name with
             | None -> provider
-            | Some (p: EventPipeProvider) ->
+            | Some(p: EventPipeProvider) ->
                 let level =
                     if p.EventLevel < provider.EventLevel then
                         p.EventLevel
@@ -134,21 +128,16 @@ module private H =
             |> Seq.collect (fun h -> (h.GetProviderSpec eventLevel).Providers)
             |> Seq.fold providerFolder Map.empty<string, EventPipeProvider>
 
-        if providersMap
-           |> Map.containsKey HandlerCommons.DiagnosticSourceEventSourceName then
+        if providersMap |> Map.containsKey HandlerCommons.DiagnosticSourceEventSourceName then
             logger.TraceWarning "DiagnosticSourceEventSource defined as one of the handler providers - will be replaced"
 
-        if providersMap
-           |> Map.containsKey HandlerCommons.LoggingEventSourceName then
+        if providersMap |> Map.containsKey HandlerCommons.LoggingEventSourceName then
             logger.TraceWarning "LoggingEventSource defined as one of the handler providers - will be replaced"
 
         // DiagnosticSourceEventSource
         let filterAndPayloadSpecs =
             handlers
-            |> Seq.collect
-                (fun h ->
-                    (h.GetProviderSpec eventLevel)
-                        .DiagnosticSourceFilterAndPayloadSpecs)
+            |> Seq.collect (fun h -> (h.GetProviderSpec eventLevel).DiagnosticSourceFilterAndPayloadSpecs)
             |> String.concat "\n"
 
         let providersMap =
@@ -158,22 +147,17 @@ module private H =
                         HandlerCommons.DiagnosticSourceEventSourceName,
                         eventLevel,
                         0x803L, // 0x800 - disable shortcuts
-                        [| "FilterAndPayloadSpecs", filterAndPayloadSpecs |]
-                        |> dict
+                        [| "FilterAndPayloadSpecs", filterAndPayloadSpecs |] |> dict
                     )
 
-                providersMap
-                |> Map.add eventsource.Name eventsource
+                providersMap |> Map.add eventsource.Name eventsource
             else
                 providersMap
 
         // LoggingEventSource
         let filterAndPayloadSpecs =
             handlers
-            |> Seq.collect
-                (fun h ->
-                    (h.GetProviderSpec eventLevel)
-                        .ExtensionLoggingFilterSpecs)
+            |> Seq.collect (fun h -> (h.GetProviderSpec eventLevel).ExtensionLoggingFilterSpecs)
             |> String.concat ";"
 
         let providersMap =
@@ -186,8 +170,7 @@ module private H =
                         [| "FilterSpecs", filterAndPayloadSpecs |] |> dict
                     )
 
-                providersMap
-                |> Map.add eventsource.Name eventsource
+                providersMap |> Map.add eventsource.Name eventsource
             else
                 providersMap
 
@@ -210,31 +193,22 @@ module private H =
 
     // returns true if the process stopped by itself, false if the ct got cancelled
     let rec waitForProcessExit (ct: CancellationToken) (proc: Process) =
-        if proc.HasExited then
-            true
-        elif ct.IsCancellationRequested then
-            false
-        elif sessionWaitEvent.WaitOne(0) then
-            false
-        elif proc.WaitForExit(200) then
-            true
-        else
-            waitForProcessExit ct proc
+        if proc.HasExited then true
+        elif ct.IsCancellationRequested then false
+        elif sessionWaitEvent.WaitOne(0) then false
+        elif proc.WaitForExit(200) then true
+        else waitForProcessExit ct proc
 
     let rec waitForSession (ct: CancellationToken) =
         if ct.IsCancellationRequested then ()
         elif sessionWaitEvent.WaitOne(0) then ()
         else waitForSession ct
 
-    let resumeProcess diagclient =
-        DiagnosticsClientPrivateApi.resumeRuntime diagclient
-
     let openTraceFile path ct =
         try
             printf "Please wait. Analyzing rundown events... "
 
-            let proc =
-                EventPipeTraceSession.collectProcessInfoFromRundownEvents path ct
+            let proc = EventPipeTraceSession.collectProcessInfoFromRundownEvents path ct
 
             printfn "done"
 
@@ -247,7 +221,8 @@ module private H =
                   resume = id
                   waitForProcess = fun () -> waitForSession ct
                   cleanup = fun () -> stream.Dispose() }
-        with ex -> Error(ex.ToString()) // ex.Message
+        with ex ->
+            Error(ex.ToString()) // ex.Message
 
 
     let startProcess newConsole (args: list<string>) (providers: array<EventPipeProvider>) ct =
@@ -255,11 +230,9 @@ module private H =
 
         let now = DateTime.Now.ToString("yyyyMMdd_HHmmss")
 
-        let diagPortName =
-            $"wtrace-dotnet-{Process.GetCurrentProcess().Id}-{now}.socket"
+        let diagPortName = $"wtrace-dotnet-{Process.GetCurrentProcess().Id}-{now}.socket"
 
-        let reversedServer =
-            DiagnosticsClientPrivateApi.createReversedServer diagPortName
+        let reversedServer = DiagnosticsClientPrivateApi.createReversedServer diagPortName
 
         try
             reversedServer.start ()
@@ -279,28 +252,28 @@ module private H =
             let diagclient =
                 DiagnosticsClientPrivateApi.waitForProcessToConnect reversedServer proc.Id
 
-            let session =
-                diagclient.StartEventPipeSession(providers, true)
+            let session = diagclient.StartEventPipeSession(providers, true)
 
             Ok
                 { TargetProcess =
-                      { ProcessName = proc.ProcessName
-                        ProcessId = proc.Id }
+                    { ProcessName = proc.ProcessName
+                      ProcessId = proc.Id }
                   EventStream = session.EventStream
                   stop =
-                      fun _ ->
-                          try
-                              session.Stop()
-                          with :? ServerNotAvailableException -> ()
-                  resume = fun () -> resumeProcess diagclient
+                    fun _ ->
+                        try
+                            session.Stop()
+                        with :? ServerNotAvailableException ->
+                            ()
+                  resume = fun () -> diagclient.ResumeRuntime()
                   waitForProcess =
-                      fun () ->
-                          if waitForProcessExit ct proc then
-                              printfn $"Process ({proc.Id}) exited."
+                    fun () ->
+                        if waitForProcessExit ct proc then
+                            printfn $"Process ({proc.Id}) exited."
                   cleanup =
-                      fun () ->
-                          session.Dispose()
-                          reversedServer.close () }
+                    fun () ->
+                        session.Dispose()
+                        reversedServer.close () }
         with ex ->
             reversedServer.close ()
             Error ex.Message
@@ -309,24 +282,24 @@ module private H =
         try
             let diagclient = DiagnosticsClient(pid)
 
-            let session =
-                diagclient.StartEventPipeSession(providers, true)
+            let session = diagclient.StartEventPipeSession(providers, true)
 
             let proc = Process.GetProcessById(pid)
 
             Ok
                 { TargetProcess =
-                      { ProcessName = proc.ProcessName
-                        ProcessId = proc.Id }
+                    { ProcessName = proc.ProcessName
+                      ProcessId = proc.Id }
                   EventStream = session.EventStream
                   stop = fun _ -> session.Stop()
                   resume = id
                   waitForProcess =
-                      fun () ->
-                          if waitForProcessExit ct proc then
-                              printfn $"Process ({proc.Id}) exited."
+                    fun () ->
+                        if waitForProcessExit ct proc then
+                            printfn $"Process ({proc.Id}) exited."
                   cleanup = fun () -> session.Dispose() }
-        with ex -> Error ex.Message
+        with ex ->
+            Error ex.Message
 
 let startTrace traceTarget handlers filters level newConsole noColor (ct: CancellationToken) =
     result {
@@ -334,15 +307,17 @@ let startTrace traceTarget handlers filters level newConsole noColor (ct: Cancel
 
         if logger.Switch.ShouldTrace(TraceEventType.Verbose) then
             providers
-            |> Array.iter
-                (fun p ->
-                    logger.TraceVerbose($"[TraceControl] Enabled %s{p.Name}:%x{p.Keywords}:%d{int32 p.EventLevel}")
+            |> Array.iter (fun p ->
+                logger.TraceVerbose($"[TraceControl] Enabled %s{p.Name}:%x{p.Keywords}:%d{int32 p.EventLevel}")
 
-                    if logger.Switch.ShouldTrace(TraceEventType.Verbose)
-                       && not (isNull p.Arguments) && p.Arguments.Count > 0 then
-                        p.Arguments
-                        |> Seq.map (|KeyValue|)
-                        |> Seq.iter (fun (k, v) -> logger.TraceVerbose($"[TraceControl] - %s{k}: %s{v}")))
+                if
+                    logger.Switch.ShouldTrace(TraceEventType.Verbose)
+                    && not (isNull p.Arguments)
+                    && p.Arguments.Count > 0
+                then
+                    p.Arguments
+                    |> Seq.map (|KeyValue|)
+                    |> Seq.iter (fun (k, v) -> logger.TraceVerbose($"[TraceControl] - %s{k}: %s{v}")))
 
         printfn ""
         printfn "Press Ctrl + C to stop the application."
@@ -362,8 +337,7 @@ let startTrace traceTarget handlers filters level newConsole noColor (ct: Cancel
 
             logger.TraceInformation($"[{(nameof EventPipeSession)}] Creating EventPipe subscription")
 
-            use sub =
-                createEventSubscription settings filters noColor
+            use sub = createEventSubscription settings filters noColor
 
             use _ctr = ct.Register(fun () -> sess.stop ())
 

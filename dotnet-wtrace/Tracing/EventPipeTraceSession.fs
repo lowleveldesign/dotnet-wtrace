@@ -39,20 +39,16 @@ module EventPipeTraceSession =
             { ProcessName = "<unknown>"
               ProcessId = 0 }
 
-        use _ctr =
-            ct.Register(fun () -> eventSource.Dispose())
+        use _ctr = ct.Register(fun () -> eventSource.Dispose())
 
         try
             eventSource.Dynamic.AddCallbackForProviderEvent(
                 "Microsoft-DotNETCore-EventPipe",
                 "ProcessInfo",
                 (fun ev ->
-                    let cmdline =
-                        ev.PayloadStringByName("CommandLine")
-                        |? "<unknown>"
+                    let cmdline = ev.PayloadStringByName("CommandLine") |? "<unknown>"
 
-                    let args =
-                        cmdline.Split([| '\t'; ' ' |], 2, StringSplitOptions.RemoveEmptyEntries)
+                    let args = cmdline.Split([| '\t'; ' ' |], 2, StringSplitOptions.RemoveEmptyEntries)
 
                     procInfo <-
                         { ProcessName = Path.GetFileNameWithoutExtension(args.[0])
@@ -73,30 +69,36 @@ module EventPipeTraceSession =
             |> Array.map (fun h -> (h, h.Initialize(settings.TargetProcess, publishTraceEvent)))
 
         try
-            use eventSource =
-                new EventPipeEventSource(settings.EventStream)
+            use eventSource = new EventPipeEventSource(settings.EventStream)
 
-            // Very simple Id generator for the session. It is never accessed asynchronously so there is no
-            // risk if we simply increment it
-            let mutable eventId = 0
+            try
 
-            let idgen () =
-                eventId <- eventId + 1
-                eventId
+                // Very simple Id generator for the session. It is never accessed asynchronously so there is no
+                // risk if we simply increment it
+                let mutable eventId = 0
 
-            let sessionState = WTraceEventSource(eventSource, settings.EventLevel)
+                let idgen () =
+                    eventId <- eventId + 1
+                    eventId
 
-            // Subscribe handlers to the trace session
-            handlersWithStates
-            |> Array.iter (fun (h, s) -> h.Subscribe(sessionState, idgen, s))
+                let sessionState = WTraceEventSource(eventSource, settings.EventLevel)
 
-            eventSource.Process() |> ignore
+                // Subscribe handlers to the trace session
+                handlersWithStates
+                |> Array.iter (fun (h, s) -> h.Subscribe(sessionState, idgen, s))
 
-            publishStatus (SessionStopped eventSource.EventsLost)
+                eventSource.Process() |> ignore
 
-            logger.TraceInformation(
-                $"[{(nameof EventPipeSession)}] EventPipe session completed, {eventSource.EventsLost} event(s) lost"
-            )
+                publishStatus (SessionStopped eventSource.EventsLost)
+
+                logger.TraceInformation(
+                    $"[{(nameof EventPipeSession)}] EventPipe session completed, {eventSource.EventsLost} event(s) lost"
+                )
+            with ex when ex.Message = "Read past end of stream." ->
+                logger.TraceInformation(
+                    $"[{(nameof EventPipeSession)}] EventPipe stream corrupted, {eventSource.EventsLost} event(s) lost"
+                )
+                publishStatus (SessionStopped eventSource.EventsLost)
         with ex ->
             logger.TraceError(ex)
             publishStatus (SessionError $"'%s{ex.Message}' <%s{ex.GetType().FullName}>")
@@ -113,55 +115,41 @@ module internal DiagnosticsClientPrivateApi =
     let reversedServerType =
         diagClientType.Assembly.GetType("Microsoft.Diagnostics.NETCore.Client.ReversedDiagnosticsServer")
 
-    let serverStart =
-        reversedServerType.GetMethod("Start", Array.empty<Type>)
+    let serverStart = reversedServerType.GetMethod("Start", Array.empty<Type>)
 
     let serverAccept = reversedServerType.GetMethod("Accept")
 
-    let serverDisposeAsync =
-        reversedServerType.GetMethod("DisposeAsync")
+    let serverDisposeAsync = reversedServerType.GetMethod("DisposeAsync")
 
     let ipcEndpointInfoType =
         diagClientType.Assembly.GetType("Microsoft.Diagnostics.NETCore.Client.IpcEndpointInfo")
 
-    let ipcEndpointInfoEndpointProperty =
-        ipcEndpointInfoType.GetProperty("Endpoint")
+    let ipcEndpointInfoEndpointProperty = ipcEndpointInfoType.GetProperty("Endpoint")
 
-    let ipcEndpointInfoProcessIdProperty =
-        ipcEndpointInfoType.GetProperty("ProcessId")
+    let ipcEndpointInfoProcessIdProperty = ipcEndpointInfoType.GetProperty("ProcessId")
 
     let clientResumeRuntime =
-        typedefof<DiagnosticsClient>.GetMethod ("ResumeRuntime", BindingFlags.NonPublic ||| BindingFlags.Instance)
+        typedefof<DiagnosticsClient>
+            .GetMethod("ResumeRuntime", BindingFlags.NonPublic ||| BindingFlags.Instance)
 
     let createReversedServer diagPortName =
-        let server =
-            Activator.CreateInstance(reversedServerType, [| diagPortName :> obj |])
+        let server = Activator.CreateInstance(reversedServerType, [| diagPortName :> obj |])
 
-        { start =
-              fun () ->
-                  serverStart.Invoke(server, Array.empty<obj>)
-                  |> ignore
+        { start = fun () -> serverStart.Invoke(server, Array.empty<obj>) |> ignore
           accept = fun timeout -> serverAccept.Invoke(server, [| timeout |])
           close =
-              fun () ->
-                  (serverDisposeAsync.Invoke(server, Array.empty<obj>) :?> ValueTask)
-                      .AsTask()
-                      .Wait() }
-
-    let resumeRuntime client =
-        clientResumeRuntime.Invoke(client, Array.empty<obj>)
-        |> ignore
+            fun () ->
+                (serverDisposeAsync.Invoke(server, Array.empty<obj>) :?> ValueTask)
+                    .AsTask()
+                    .Wait() }
 
     let rec waitForProcessToConnect server pid =
-        let endpointInfo =
-            server.accept (TimeSpan.FromSeconds(15.0))
+        let endpointInfo = server.accept (TimeSpan.FromSeconds(15.0))
 
-        let endpointPid =
-            ipcEndpointInfoProcessIdProperty.GetValue(endpointInfo) :?> int32
+        let endpointPid = ipcEndpointInfoProcessIdProperty.GetValue(endpointInfo) :?> int32
 
         if endpointPid = pid then
-            let endpoint =
-                ipcEndpointInfoEndpointProperty.GetValue(endpointInfo)
+            let endpoint = ipcEndpointInfoEndpointProperty.GetValue(endpointInfo)
 
             Activator.CreateInstance(
                 diagClientType,

@@ -127,7 +127,7 @@ type internal DataCache<'K, 'V when 'K: equality>(capacity: int32) =
         if previousKey <> Unchecked.defaultof<'K> then
             cache.Remove(previousKey) |> ignore
 
-        cache.Add(k, v)
+        cache.[k] <- v
         buffer.[currentIndex] <- k
         Debug.Assert(cache.Count <= capacity, "[Cache] cache.Count < capacity")
 
