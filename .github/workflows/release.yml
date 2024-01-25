@@ -15,7 +15,7 @@ jobs:
       with:
         fetch-depth: 1
 
-    - uses: actions/setup-dotnet@v3
+    - uses: actions/setup-dotnet@main
       with:
         dotnet-version: '6.0.x' # SDK Version to use.
 
@@ -32,19 +32,19 @@ jobs:
         NUGET_KEY: ${{ secrets.NUGET_KEY }}
       working-directory: ./dotnet-wtrace/bin/release
 
-    - run: dotnet publish -c release -r linux-x64 --self-contained
+    - run: dotnet publish -c release -r linux-x64 --self-contained -p:PublishTrimmed=true -p:PublishSingleFile=true
       working-directory: ./dotnet-wtrace
 
-    - run: dotnet publish -c release -r osx-x64 --self-contained
+    - run: dotnet publish -c release -r osx-x64 --self-contained -p:PublishTrimmed=true -p:PublishSingleFile=true
       working-directory: ./dotnet-wtrace
 
-    - run: dotnet publish -c release -r win-x64 --self-contained
+    - run: dotnet publish -c release -r win-x64 --self-contained -p:PublishTrimmed=true -p:PublishSingleFile=true
       working-directory: ./dotnet-wtrace
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-linux
-        path: dotnet-wtrace/bin/release/net6.0/linux-x64/publish/dotnet-wtrace.*
+        path: dotnet-wtrace/bin/release/net6.0/linux-x64/publish/dotnet-wtrace*
 
     - uses: actions/upload-artifact@main
       with:
@@ -54,4 +54,4 @@ jobs:
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-osx
-        path: dotnet-wtrace/bin/release/net6.0/osx-x64/publish/dotnet-wtrace.*
+        path: dotnet-wtrace/bin/release/net6.0/osx-x64/publish/dotnet-wtrace*

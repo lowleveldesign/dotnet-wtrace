@@ -13,8 +13,6 @@
         <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>dotnet-wtrace</ToolCommandName>
-        <PublishTrimmed>true</PublishTrimmed>
-        <PublishSingleFile>true</PublishSingleFile>
     </PropertyGroup>
 
     <ItemGroup>
