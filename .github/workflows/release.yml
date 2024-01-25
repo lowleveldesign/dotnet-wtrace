@@ -32,26 +32,26 @@ jobs:
         NUGET_KEY: ${{ secrets.NUGET_KEY }}
       working-directory: ./dotnet-wtrace/bin/release
 
-    - run: dotnet publish -c release -r linux-x64 --self-contained -f net6.0 -p:PublishSingleFile=true -p:PublishTrimmed=true
+    - run: dotnet publish -c release -r linux-x64 --self-contained
       working-directory: ./dotnet-wtrace
 
-    - run: dotnet publish -c release -r osx-x64 --self-contained -f net6.0 -p:PublishSingleFile=true -p:PublishTrimmed=true
+    - run: dotnet publish -c release -r osx-x64 --self-contained
       working-directory: ./dotnet-wtrace
 
-    - run: dotnet publish -c release -r win-x64 --self-contained -f net6.0 -p:PublishSingleFile=true -p:PublishTrimmed=true
+    - run: dotnet publish -c release -r win-x64 --self-contained
       working-directory: ./dotnet-wtrace
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-linux
-        path: dotnet-wtrace/bin/release/net6.0/linux-x64/publish
+        path: dotnet-wtrace/bin/release/net6.0/linux-x64/publish/dotnet-wtrace.*
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-windows
-        path: dotnet-wtrace/bin/release/net6.0/win-x64/publish
+        path: dotnet-wtrace/bin/release/net6.0/win-x64/publish/dotnet-wtrace.*
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-osx
-        path: dotnet-wtrace/bin/release/net6.0/osx-x64/publish
+        path: dotnet-wtrace/bin/release/net6.0/osx-x64/publish/dotnet-wtrace.*

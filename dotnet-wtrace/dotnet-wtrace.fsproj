@@ -1,51 +1,51 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="$(MSBuildThisFileDirectory)..\build\Common.targets" />
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <Authors>Sebastian Solnica</Authors>
+        <Company>Sebastian Solnica (lowleveldesign.org)</Company>
+        <AssemblyVersion>6.0.0.0</AssemblyVersion>
+        <FileVersion>6.0.0.0</FileVersion>
+        <PackageVersion>6.0.0.0</PackageVersion>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>dotnet-wtrace</ToolCommandName>
+        <PublishTrimmed>true</PublishTrimmed>
+        <PublishSingleFile>true</PublishSingleFile>
+    </PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0</TargetFrameworks>
-    <Authors>Sebastian Solnica</Authors>
-    <Company>Sebastian Solnica (lowleveldesign.org)</Company>
-    <AssemblyVersion>6.0.0.0</AssemblyVersion>
-    <FileVersion>6.0.0.0</FileVersion>
-    <PackageVersion>6.0.0.0</PackageVersion>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>dotnet-wtrace</ToolCommandName>
-  </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="Commons\CommandLine.fs" />
+        <Compile Include="Commons\ResultBuilder.fs" />
+        <Compile Include="Commons\Globals.fs" />
+        <Compile Include="Models\Events.fs" />
+        <Compile Include="Events\Commons.fs" />
+        <Compile Include="Events\Default.fs" />
+        <Compile Include="Events\Loader.fs" />
+        <Compile Include="Events\GC.fs" />
+        <Compile Include="Events\Network.fs" />
+        <Compile Include="Events\AspNetCore.fs" />
+        <Compile Include="Events\EFCore.fs" />
+        <Compile Include="Tracing\Commons.fs" />
+        <Compile Include="Tracing\EventPipeTraceSession.fs" />
+        <Compile Include="Tracing\EventFilter.fs" />
+        <Compile Include="TraceControl.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Commons\CommandLine.fs" />
-    <Compile Include="Commons\ResultBuilder.fs" />
-    <Compile Include="Commons\Globals.fs" />
-    <Compile Include="Models\Events.fs" />
-    <Compile Include="Events\Commons.fs" />
-    <Compile Include="Events\Default.fs" />
-    <Compile Include="Events\Loader.fs" />
-    <Compile Include="Events\GC.fs" />
-    <Compile Include="Events\Network.fs" />
-    <Compile Include="Events\AspNetCore.fs" />
-    <Compile Include="Events\EFCore.fs" />
-    <Compile Include="Tracing\Commons.fs" />
-    <Compile Include="Tracing\EventPipeTraceSession.fs" />
-    <Compile Include="Tracing\EventFilter.fs" />
-    <Compile Include="TraceControl.fs" />
-    <Compile Include="Program.fs" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="FSharp.Control.Reactive" Version="5.0.5" />
+        <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.505301" />
+        <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.7" GeneratePathProperty="true" />
+        <PackageReference Include="System.Reactive" Version="5.0.0" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="FSharp.Control.Reactive" Version="5.0.5" />
-    <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.410101" />
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.0.7" GeneratePathProperty="true" />
-    <PackageReference Include="System.Reactive" Version="5.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="dotnet-wtrace.tests" />
-  </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="dotnet-wtrace.tests" />
+    </ItemGroup>
 
 </Project>
 
