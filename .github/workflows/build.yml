@@ -17,7 +17,7 @@ jobs:
 
     - uses: actions/setup-dotnet@main
       with:
-        dotnet-version: '6.0.x' # SDK Version to use.
+        dotnet-version: '9.0.x' # SDK Version to use.
 
     - run: dotnet publish -c release -r linux-x64 --self-contained -p:PublishTrimmed=true -p:PublishSingleFile=true
       working-directory: ./dotnet-wtrace
@@ -31,14 +31,14 @@ jobs:
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-linux
-        path: dotnet-wtrace/bin/release/net6.0/linux-x64/publish/dotnet-wtrace*
+        path: dotnet-wtrace/bin/release/net9.0/linux-x64/publish/dotnet-wtrace*
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-windows
-        path: dotnet-wtrace/bin/release/net6.0/win-x64/publish/dotnet-wtrace.*
+        path: dotnet-wtrace/bin/release/net9.0/win-x64/publish/dotnet-wtrace.*
 
     - uses: actions/upload-artifact@main
       with:
         name: dotnet-wtrace-osx
-        path: dotnet-wtrace/bin/release/net6.0/osx-x64/publish/dotnet-wtrace*
+        path: dotnet-wtrace/bin/release/net9.0/osx-x64/publish/dotnet-wtrace*
